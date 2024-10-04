@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="/styles.css" rel="stylesheet">
+    <title>Home</title>
+</head>
+<body class="bg-black h-screen flex items-center justify-center">
+    <div class="bg-gray-900 shadow-lg rounded-lg p-8 max-w-md w-full">
+        <h1 class="text-2xl font-bold text-center text-white mb-4">Conversinha</h1>
+        <h2 class="text-xl text-gray-300 text-center mb-6">Olá, <%= username %></h2>
+
+        <div id="chat_messages" class="h-64 overflow-y-auto bg-gray-800 border border-gray-700 p-4 rounded-lg mb-4 text-gray-300"></div>
+        
+        <div class="flex items-center justify-between mb-4">
+          <select id="userSelect" class="block w-1/4 p-2 bg-gray-800 text-gray-300 border border-gray-700 rounded-md">
+            <option value="Todos">Todos</option>
+          </select>
+          <input type="text" id="chat_input" placeholder="Digite sua mensagem" class="block w-3/4 p-2 bg-gray-800 text-gray-300 border border-gray-700 rounded-md ml-4">
+        </div>
+        
+        <button id="send_button" class="w-full bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition">Enviar</button>
+
+        <button id="logout_button" class="absolute top-4 right-4 bg-red-600 text-white p-2 rounded-md hover:bg-red-700 transition">
+            Logout
+          </button>
+
+      </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const username = "<%= username %>"
+
+        socket.emit('userConnected', username);
+
+        const chatInput = document.getElementById('chat_input');
+        chatInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter' && chatInput.value.trim()) {
+                const reciever = document.getElementById('userSelect').value;
+                socket.emit('chatMessage', { msg:chatInput.value, sender:username, reciever: reciever })
+                chatInput.value = '';
+            }
+        });
+
+        const sendButton = document.getElementById('send_button');
+        sendButton.addEventListener('click', (event) => {
+            if (chatInput.value.trim()) {
+                const reciever = document.getElementById('userSelect').value;
+                socket.emit('chatMessage', { msg:chatInput.value, sender:username, reciever: reciever })
+                chatInput.value = '';
+            }
+        })
+
+        socket.on('chatMessage', (data) => {
+            const messagesDisplay = document.getElementById('chat_messages');
+            const messageElement = document.createElement('p');
+            messageElement.innerHTML = "<Strong>" + data.sender + "</Strong>: " + data.msg;
+            messagesDisplay.appendChild(messageElement);
+            messagesDisplay.scrollTop = messagesDisplay.scrollHeight;
+        });
+
+        socket.on('privateMessage', (data) => {
+            const chatMessages = document.getElementById('chat_messages');
+            const messageElement = document.createElement('p');
+            messageElement.innerHTML = '<strong>' + data.sender + ' (privado):</strong> ' + data.msg;
+            messageElement.style.color = 'red';
+            chatMessages.appendChild(messageElement);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        });
+
+        socket.on('userlistUpdate', (userList) => {
+            const userSelect = document.getElementById('userSelect');
+            userSelect.innerHTML = '<option value="Todos">Todos</option>';
+            userList.forEach(user => {
+                if (user !== username) {
+                    const option = document.createElement('option');
+                    option.value = user;
+                    option.textContent = user;
+                    userSelect.appendChild(option);
+                }
+            })
+        })
+
+        const logoutButton = document.getElementById('logout_button');
+        logoutButton.addEventListener('click', async (e) => {
+            e.preventDefault();
+
+            fetch('/logout', {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+            .then(response => {
+                window.location.href = '/';
+            })
+            .catch(error => {
+                console.log(error);
+            })
+        })
+    </script>
+</body>
+</html>
